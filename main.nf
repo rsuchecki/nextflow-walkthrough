@@ -1,5 +1,7 @@
+params.subset = 1
+
 Channel.fromPath("data/raw_reads/*.fastq.gz")
-  .take(1)
+  .take( params.subset )
   .set { readsForQcChannel }
 
 process fastqc{
