@@ -14,3 +14,19 @@ process fastqc{
     ${reads}
   """
 }
+
+
+referencesChannel = Channel.fromPath('data/references/reference.fasta.gz')
+
+process bwa_index {
+  input:
+    file(ref) from referencesChannel
+
+  output:
+    set val("${ref}"), file("*") into indexChannel
+
+  script:
+  """
+  bwa index -a bwtsw ${ref}
+  """
+}
