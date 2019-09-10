@@ -63,3 +63,18 @@ process trimmomatic_pe {
   -Xmx256m
   """
 }
+
+
+process bwa_mem {
+  input:
+    set val(prefix), file(index), val(accession), file(reads) from indexChannel.combine(trimmedReadsChannel)
+
+  output:
+    file '*.bam'
+
+  script:
+  """
+  bwa mem -t ${task.cpus} ${prefix} ${reads} \
+  | samtools view -b > ${accession}.bam
+  """
+}
