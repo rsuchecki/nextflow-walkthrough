@@ -12,7 +12,7 @@ reference_url = params.reference
 
 process get_reference { //alternative: referencesChannel = Channel.fromPath(params.reference)
   tag { "${region}"}
-  publishDir "data/reference", mode: 'copy'
+  publishDir "data/references", mode: 'copy'
 
   input:
     reference_url
