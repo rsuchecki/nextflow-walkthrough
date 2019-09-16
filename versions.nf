@@ -1,6 +1,5 @@
 #!/usr/bin/env nextflow
 
-
 process get_versions {
   echo true
 
