@@ -67,6 +67,8 @@ process trimmomatic_pe {
 
 
 process bwa_mem {
+  publishDir 'results/aligned', mode: 'copy'
+
   input:
     set val(prefix), file(index), val(sample), file(reads) from indexChannel.combine(trimmedReadsChannel)
 
