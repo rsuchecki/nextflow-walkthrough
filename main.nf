@@ -8,10 +8,29 @@ process fastqc {
   input:
     file reads from readsForQcChannel
 
+  output:
+    file '*' into qcdChannel
+
   """
   fastqc \
     --threads ${task.cpus} \
     ${reads}
+  """
+}
+
+
+process multiqc {
+  publishDir 'results/multiqc', mode: 'copy'
+
+  input:
+    file '*' from qcdChannel.collect()
+
+  output:
+    file '*'
+
+  script:
+  """
+  multiqc .
   """
 }
 
@@ -79,5 +98,18 @@ process bwa_mem {
   """
   bwa mem -t ${task.cpus} ${prefix} ${reads} \
   | samtools view -b > ${sample}.bam
+  """
+}
+
+
+process merge_bams {
+  cpus 2
+
+  input:
+    file('*.bam') from alignedReadsChannel.collect()
+
+  script:
+  """
+  samtools merge --threads ${task.cpus} ${params.n}_samples_megred.bam *.bam
   """
 }
