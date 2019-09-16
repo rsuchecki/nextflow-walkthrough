@@ -42,10 +42,10 @@ Channel.fromPath('data/misc/trimmomatic_adapters/TruSeq3-PE.fa')
 
 process trimmomatic_pe {
   input:
-    set file(adapters), val(accession), file(reads) from adaptersChannel.combine(readPairsForTrimmingChannel)
+    set file(adapters), val(sample), file(reads) from adaptersChannel.combine(readPairsForTrimmingChannel)
 
   output:
-    set val(accession), file('*.paired.fastq.gz') into trimmedReadsChannel
+    set val(sample), file('*.paired.fastq.gz') into trimmedReadsChannel
 
   script:
   """
