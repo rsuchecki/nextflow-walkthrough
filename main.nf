@@ -11,42 +11,5 @@ params.n = 1
 
 Channel.fromPath("data/raw_reads/*.fastq.gz")
   .take( params.n )
+  .view()
   .set { ReadsForQcChannel }
-
-process FASTQC {  
-  input:
-    path(reads)
-
-  output:
-    path('*')
-
-  """
-  fastqc \
-    --threads ${task.cpus} \
-    ${reads}
-  """
-}
-
-process MULTIQC {
-  publishDir 'results/multiqc', mode: 'copy'
-
-  input:
-    path('*')
-
-  output:
-    path('*')    
-
-  script:
-  """
-  multiqc .
-  """
-}
-
-/*
- Chaining everything toogether
-*/
-workflow {
-  //QC - could be separated as a sub-workflow
-  FASTQC( ReadsForQcChannel )
-  MULTIQC( FASTQC.out.collect() )
-}
