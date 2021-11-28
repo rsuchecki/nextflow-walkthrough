@@ -8,8 +8,3 @@ nextflow.enable.dsl=2
   to process all FASTQ files (16 pairs)
 */
 params.n = 1 
-
-Channel.fromPath("data/raw_reads/*.fastq.gz")
-  .take( params.n )
-  .view()
-  .set { ReadsForQcChannel }
