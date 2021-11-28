@@ -68,7 +68,7 @@ Channel.fromPath('data/misc/TruSeq3-PE.fa')
 process TRIM_PE {
   tag { "$sample" }
   input:
-    tuple  val(sample), path(reads), path(adapters) 
+    tuple val(sample), path(reads), path(adapters) 
 
   output:
     tuple val(sample), path('*.paired.fastq.gz') 
@@ -129,49 +129,13 @@ process MERGE_BAMS {
  Chaining everything toogether
 */
 workflow {
-  /*
-  For demonstration purposes we are comparing 3 different 
-  syntax styles of workflow composition
-  These can also be mixed. 
-  The 'pipes' work best when each process has only one input (which may be a tuple of multiple elements)
-  */
-  if(params.pipes) {                                              //Syntax style 1
-    //QC - could be separated as a sub-workflow
-    ReadsForQcChannel | FASTQC | collect | MULTIQC
-    
-    //Workflow proper    
-    ReadPairsForTrimmingChannel \
-    | combine( AdaptersChannel ) \
-    | TRIM_PE \
-    | combine( ReferencesChannel | BWA_INDEX ) \
-    | BWA_ALIGN \
-    | collect \
-    | MERGE_BAMS
+  //QC - could be separated as a sub-workflow
+  FASTQC( ReadsForQcChannel )
+  MULTIQC( FASTQC.out.collect() )
 
-  } else if(params.nested) {                                       //Syntax style 2
-    //QC - could be separated as a sub-workflow
-    MULTIQC ( FASTQC( ReadsForQcChannel ).collect() )
-
-    //Workflow proper
-    MERGE_BAMS (
-      BWA_ALIGN (      
-        TRIM_PE ( 
-          ReadPairsForTrimmingChannel
-          .combine( AdaptersChannel ) 
-        )
-        .combine( BWA_INDEX( ReferencesChannel ) )
-      )
-      .collect()
-    )
-  } else {                                                         //Syntax style 3
-    //QC - could be separated as a sub-workflow
-    FASTQC( ReadsForQcChannel )
-    MULTIQC( FASTQC.out.collect() )
-
-    //Workflow proper
-    TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
-    BWA_INDEX(  ReferencesChannel )
-    BWA_ALIGN ( TRIM_PE.out.combine( BWA_INDEX.out ) )
-    MERGE_BAMS ( BWA_ALIGN.out.collect() )    
-  }
+  //Workflow proper
+  TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
+  BWA_INDEX(  ReferencesChannel )
+  BWA_ALIGN ( TRIM_PE.out.combine( BWA_INDEX.out ) )
+  MERGE_BAMS ( BWA_ALIGN.out.collect() )
 }
