@@ -68,7 +68,7 @@ Channel.fromPath('data/misc/TruSeq3-PE.fa')
 process TRIM_PE {
   tag { "$sample" }
   input:
-    tuple  val(sample), path(reads), path(adapters) //from adaptersChannel.combine(readPairsForTrimmingChannel)
+    tuple  val(sample), path(reads), path(adapters) 
 
   output:
     tuple val(sample), path('*.paired.fastq.gz') 
@@ -117,7 +117,7 @@ process MERGE_BAMS {
     path('*.bam') // from alignedReadsChannel.collect()
 
   output:
-
+    path('*.bam') //Input BAMs will be omitted, could also be explicit:  path("${params.n}_samples_megred.bam")
 
   script:
   """
