@@ -1,5 +1,8 @@
 #!/usr/bin/env nextflow
 
+// DSL1 is used by default, but being explicit here
+nextflow.enable.dsl=1 
+
 //Take accessions defined in nextflow.config.
 //Use --take N to process first N accessions or --take all to process all
 accessionsChannel = Channel.from(params.accessions).take( params.download == 'all' ? -1 : params.download )
@@ -9,6 +12,23 @@ region = "${params.chr}_${params.start}-${params.end}"
 //Reference fasta.gz specified in nextflow.config, override with --reference path_or_url.fasta.gz
 reference_url = params.reference
 
+adapters_url = params.adapters
+
+
+process get_adapters { //alternative: referencesChannel = Channel.fromPath(params.reference)
+  publishDir "data/misc", mode: 'copy'
+
+  input: 
+    adapters_url
+
+  output:
+    path('*')
+
+  script:
+  """
+  wget ${adapters_url}
+  """
+}
 
 process get_reference { //alternative: referencesChannel = Channel.fromPath(params.reference)
   tag { "${region}"}
@@ -18,7 +38,7 @@ process get_reference { //alternative: referencesChannel = Channel.fromPath(para
     reference_url
 
   output:
-    file('*')
+    path('*')
 
   script:
   """
@@ -35,7 +55,7 @@ process get_reads {
     //e.g. ACBarrie
 
   output:
-    set val(accession), file("${accession}_R?.fastq.gz")
+    tuple val(accession), path("${accession}_R?.fastq.gz")
     //e.g. ACBarrie, [ACBarrie_R1.fastq.gz, ACBarrie_R2.fastq.gz]
 
   script:
