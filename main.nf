@@ -1,5 +1,8 @@
 #!/usr/bin/env nextflow
 
+// DSL1 is used by default, switching to DSL2
+nextflow.enable.dsl=2
+
 /*
   process 1 file unless --n used at run time, e.g. --n 32 
   to process all FASTQ files (16 pairs)
@@ -8,11 +11,14 @@ params.n = 1
 
 Channel.fromPath("data/raw_reads/*.fastq.gz")
   .take( params.n )
-  .set { readsForQcChannel }
+  .set { ReadsForQcChannel }
 
-process FASTQC {
+process FASTQC {  
   input:
-    path reads from readsForQcChannel
+    path(reads)
+
+  output:
+    path('*')
 
   """
   fastqc \
@@ -21,15 +27,30 @@ process FASTQC {
   """
 }
 
+process MULTIQC {
+  publishDir 'results/multiqc', mode: 'copy'
+
+  input:
+    path('*')
+
+  output:
+    path('*')    
+
+  script:
+  """
+  multiqc .
+  """
+}
+
 Channel.fromPath('data/references/reference.fasta.gz')
-  .set { referencesChannel }
+  .set { ReferencesChannel }
 
 process BWA_INDEX {
   input:
-    path(ref) from referencesChannel
+    path(ref)
 
   output:
-    set val("${ref}"), path("*") into indexChannel
+    tuple val("${ref}"), path("*") 
 
   script:
   """
@@ -37,20 +58,20 @@ process BWA_INDEX {
   """
 }
 
-
 Channel.fromFilePairs("data/raw_reads/*_R{1,2}.fastq.gz")
   .take( params.n )
-  .set{ readPairsForTrimmingChannel }
+  .set{ ReadPairsForTrimmingChannel }
 
 Channel.fromPath('data/misc/TruSeq3-PE.fa')
-.set{ adaptersChannel }
+.set{ AdaptersChannel }
 
 process TRIM_PE {
+  tag { "$sample" }
   input:
-    set path(adapters), val(sample), path(reads) from adaptersChannel.combine(readPairsForTrimmingChannel)
+    tuple  val(sample), path(reads), path(adapters) //from adaptersChannel.combine(readPairsForTrimmingChannel)
 
   output:
-    set val(sample), path('*.paired.fastq.gz') into trimmedReadsChannel
+    tuple val(sample), path('*.paired.fastq.gz') 
 
   script:
   """
@@ -72,13 +93,14 @@ process TRIM_PE {
 
 
 process BWA_ALIGN {
+  tag { "$sample" }
   publishDir 'results/aligned', mode: 'copy'
 
   input:
-    set val(prefix), path(index), val(sample), path(reads) from indexChannel.combine(trimmedReadsChannel)
+    tuple val(sample), path(reads), val(prefix), path(index) 
 
   output:
-    path '*.bam' into alignedReadsChannel
+    path '*.bam'
 
   script:
   """
@@ -88,10 +110,11 @@ process BWA_ALIGN {
 }
 
 process MERGE_BAMS {
+  publishDir 'results/merged', mode: 'copy'
   cpus 2
 
   input:
-    path('*.bam') from alignedReadsChannel.collect()
+    path('*.bam') // from alignedReadsChannel.collect()
 
   output:
 
@@ -100,4 +123,49 @@ process MERGE_BAMS {
   """
   samtools merge --threads ${task.cpus} ${params.n}_samples_megred.bam *.bam
   """
+}
+
+/*
+ Chaining everything toogether
+*/
+workflow {
+  if(params.pipes) {
+    //QC - could be separated as a sub-workflow
+    ReadsForQcChannel | FASTQC | collect | MULTIQC
+    
+    //Workflow proper    
+    ReadPairsForTrimmingChannel \
+    | combine( AdaptersChannel ) \
+    | TRIM_PE \
+    | combine( ReferencesChannel | BWA_INDEX ) \
+    | BWA_ALIGN \
+    | collect \
+    | MERGE_BAMS
+
+  } else if(params.nested) {
+    //QC - could be separated as a sub-workflow
+    MULTIQC ( FASTQC( ReadsForQcChannel ).collect() )
+
+    //Workflow proper
+    MERGE_BAMS (
+      BWA_ALIGN (      
+        TRIM_PE ( 
+          ReadPairsForTrimmingChannel
+          .combine( AdaptersChannel ) 
+        )
+        .combine( BWA_INDEX( ReferencesChannel ) )
+      )
+      .collect()
+    )
+  } else {
+    //QC - could be separated as a sub-workflow
+    FASTQC( ReadsForQcChannel )
+    MULTIQC( FASTQC.out.collect() )
+
+    //Workflow proper
+    TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
+    BWA_INDEX( ReferencesChannel )
+    BWA_ALIGN ( TRIM_PE.out.combine( BWA_INDEX.out ) )
+    MERGE_BAMS ( BWA_ALIGN.out.collect() )    
+  }
 }
