@@ -58,39 +58,6 @@ process BWA_INDEX {
   """
 }
 
-Channel.fromFilePairs("data/raw_reads/*_R{1,2}.fastq.gz")
-  .take( params.n )
-  .set{ ReadPairsForTrimmingChannel }
-
-Channel.fromPath('data/misc/TruSeq3-PE.fa')
-.set{ AdaptersChannel }
-
-process TRIM_PE {
-  tag { "$sample" }
-  input:
-    tuple val(sample), path(reads), path(adapters) 
-
-  output:
-    tuple val(sample), path('*.paired.fastq.gz') 
-
-  script:
-  """
-  trimmomatic PE \
-  ${reads} \
-  R1.paired.fastq.gz \
-  R1.unpaired.fastq.gz \
-  R2.paired.fastq.gz \
-  R2.unpaired.fastq.gz \
-  ILLUMINACLIP:${adapters}:2:30:10:3:true \
-  LEADING:2 \
-  TRAILING:2 \
-  SLIDINGWINDOW:4:15 \
-  MINLEN:36 \
-  -Xms256m \
-  -Xmx256m
-  """
-}
-
 /*
  Chaining everything toogether
 */
@@ -101,5 +68,4 @@ workflow {
 
   //Workflow proper
   BWA_INDEX(  ReferencesChannel )
-  TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
 }
