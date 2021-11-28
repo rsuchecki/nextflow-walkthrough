@@ -91,23 +91,6 @@ process TRIM_PE {
   """
 }
 
-process BWA_ALIGN {
-  tag { "$sample" }
-  publishDir 'results/aligned', mode: 'copy'
-
-  input:
-    tuple val(sample), path(reads), val(prefix), path(index) 
-
-  output:
-    path '*.bam'
-
-  script:
-  """
-  bwa mem -t ${task.cpus} ${prefix} ${reads} \
-  | samtools view -b > ${sample}.bam
-  """
-}
-
 /*
  Chaining everything toogether
 */
@@ -117,7 +100,6 @@ workflow {
   MULTIQC( FASTQC.out.collect() )
 
   //Workflow proper
-  TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
   BWA_INDEX(  ReferencesChannel )
-  BWA_ALIGN ( TRIM_PE.out.combine( BWA_INDEX.out ) )  
+  TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
 }
