@@ -1,12 +1,18 @@
-params.n = 1 //process 1 file unless --n used at run time, e.g. -n 32
+#!/usr/bin/env nextflow
+
+/*
+  process 1 file unless --n used at run time, e.g. --n 32 
+  to process all FASTQ files (16 pairs)
+*/
+params.n = 1 
 
 Channel.fromPath("data/raw_reads/*.fastq.gz")
   .take( params.n )
   .set { readsForQcChannel }
 
-process fastqc {
+process FASTQC {
   input:
-    file reads from readsForQcChannel
+    path reads from readsForQcChannel
 
   """
   fastqc \
@@ -15,16 +21,15 @@ process fastqc {
   """
 }
 
-
 Channel.fromPath('data/references/reference.fasta.gz')
   .set { referencesChannel }
 
-process bwa_index {
+process BWA_INDEX {
   input:
-    file(ref) from referencesChannel
+    path(ref) from referencesChannel
 
   output:
-    set val("${ref}"), file("*") into indexChannel
+    set val("${ref}"), path("*") into indexChannel
 
   script:
   """
@@ -37,15 +42,15 @@ Channel.fromFilePairs("data/raw_reads/*_R{1,2}.fastq.gz")
   .take( params.n )
   .set{ readPairsForTrimmingChannel }
 
-Channel.fromPath('data/misc/trimmomatic_adapters/TruSeq3-PE.fa')
+Channel.fromPath('data/misc/TruSeq3-PE.fa')
 .set{ adaptersChannel }
 
-process trimmomatic_pe {
+process TRIM_PE {
   input:
-    set file(adapters), val(sample), file(reads) from adaptersChannel.combine(readPairsForTrimmingChannel)
+    set path(adapters), val(sample), path(reads) from adaptersChannel.combine(readPairsForTrimmingChannel)
 
   output:
-    set val(sample), file('*.paired.fastq.gz') into trimmedReadsChannel
+    set val(sample), path('*.paired.fastq.gz') into trimmedReadsChannel
 
   script:
   """
@@ -66,18 +71,33 @@ process trimmomatic_pe {
 }
 
 
-process bwa_mem {
+process BWA_ALIGN {
   publishDir 'results/aligned', mode: 'copy'
 
   input:
-    set val(prefix), file(index), val(sample), file(reads) from indexChannel.combine(trimmedReadsChannel)
+    set val(prefix), path(index), val(sample), path(reads) from indexChannel.combine(trimmedReadsChannel)
 
   output:
-    file '*.bam' into alignedReadsChannel
+    path '*.bam' into alignedReadsChannel
 
   script:
   """
   bwa mem -t ${task.cpus} ${prefix} ${reads} \
   | samtools view -b > ${sample}.bam
+  """
+}
+
+process MERGE_BAMS {
+  cpus 2
+
+  input:
+    path('*.bam') from alignedReadsChannel.collect()
+
+  output:
+
+
+  script:
+  """
+  samtools merge --threads ${task.cpus} ${params.n}_samples_megred.bam *.bam
   """
 }
