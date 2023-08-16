@@ -1,25 +1,18 @@
 #!/usr/bin/env nextflow
 
-// DSL1 is used by default, but being explicit here
-nextflow.enable.dsl=1 
+nextflow.enable.dsl=2 
 
 //Take accessions defined in nextflow.config.
 //Use --take N to process first N accessions or --take all to process all
-accessionsChannel = Channel.from(params.accessions).take( params.download == 'all' ? -1 : params.download )
+ACCESSIONS_CHANNEL = Channel.from(params.accessions).take( params.download == 'all' ? -1 : params.download )
 
 region = "${params.chr}_${params.start}-${params.end}"
 
-//Reference fasta.gz specified in nextflow.config, override with --reference path_or_url.fasta.gz
-reference_url = params.reference
-
-adapters_url = params.adapters
-
-
-process get_adapters { //alternative: referencesChannel = Channel.fromPath(params.reference)
+process GET_ADAPTERS { //alternative: referencesChannel = Channel.fromPath(params.reference)
   publishDir "data/misc", mode: 'copy'
 
   input: 
-    adapters_url
+    val(adapters_url)
 
   output:
     path('*')
@@ -30,12 +23,12 @@ process get_adapters { //alternative: referencesChannel = Channel.fromPath(param
   """
 }
 
-process get_reference { //alternative: referencesChannel = Channel.fromPath(params.reference)
+process GET_REFERENCE { //alternative: referencesChannel = Channel.fromPath(params.reference)
   tag { "${region}"}
   publishDir "data/references", mode: 'copy'
 
   input:
-    reference_url
+    val(reference_url)
 
   output:
     path('*')
@@ -46,12 +39,12 @@ process get_reference { //alternative: referencesChannel = Channel.fromPath(para
   """
 }
 
-process get_reads {
+process GET_READS {
   tag { "${accession} @ ${region}"}
   publishDir "data/raw_reads", mode: 'copy'
 
   input:
-    val accession from accessionsChannel
+    val(accession)
     //e.g. ACBarrie
 
   output:
@@ -67,3 +60,13 @@ process get_reads {
   """
 }
 
+workflow {
+  //Reference fasta.gz specified in nextflow.config, override with --reference url_to_ref.fasta.gz
+  GET_REFERENCE(params.reference)
+  
+  //Adapters FASTA file URL specified in nextflow.config, override with --adapters url_to_adapters.fasta
+  GET_ADAPTERS(params.adapters)
+  
+  //
+  GET_READS(ACCESSIONS_CHANNEL)
+}
