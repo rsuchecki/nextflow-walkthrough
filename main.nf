@@ -4,7 +4,7 @@
 nextflow.enable.dsl=2
 
 /*
-  process 1 file unless --n used at run time, e.g. --n 32 
+  process 1 file unless --n used at run time, e.g. --n 16 
   to process all FASTQ files (16 pairs)
 */
 params.n = 1 
@@ -14,6 +14,8 @@ Channel.fromPath("data/raw_reads/*.fastq.gz")
   .set { ReadsForQcChannel }
 
 process FASTQC {  
+  tag { "$sample" }
+  
   input:
     path(reads)
 
@@ -46,6 +48,8 @@ Channel.fromPath('data/references/reference.fasta.gz')
   .set { ReferencesChannel }
 
 process BWA_INDEX {
+  label 'bwa'
+
   input:
     path(ref)
 
@@ -62,13 +66,14 @@ Channel.fromFilePairs("data/raw_reads/*_R{1,2}.fastq.gz")
   .take( params.n )
   .set{ ReadPairsForTrimmingChannel }
 
-Channel.fromPath('data/misc/TruSeq3-PE.fa')
-.set{ AdaptersChannel }
+// Channel.fromPath('data/misc/TruSeq3-PE.fa')
+// .set{ AdaptersChannel }
 
 process TRIM_PE {
   tag { "$sample" }
   input:
-    tuple val(sample), path(reads), path(adapters) 
+    tuple val(sample), path(reads)
+    path(adapters) 
 
   output:
     tuple val(sample), path('*.paired.fastq.gz') 
@@ -85,14 +90,16 @@ process TRIM_PE {
   LEADING:2 \
   TRAILING:2 \
   SLIDINGWINDOW:4:15 \
-  MINLEN:36 \
-  -Xms256m \
-  -Xmx256m
+  MINLEN:36 
+  #-Xms256m \
+  #-Xmx256m
   """
 }
 
 
 process BWA_ALIGN {
+  label 'align'
+
   tag { "$sample" }
   publishDir 'results/aligned', mode: 'copy'
 
@@ -110,6 +117,8 @@ process BWA_ALIGN {
 }
 
 process MERGE_BAMS {
+  label 'samtools'
+
   publishDir 'results/merged', mode: 'copy'
   cpus 2
 
@@ -134,7 +143,8 @@ workflow {
   MULTIQC( FASTQC.out.collect() )
 
   //Workflow proper
-  TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
+  // TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
+  TRIM_PE ( ReadPairsForTrimmingChannel, file(params.adapters_local) )
   BWA_INDEX(  ReferencesChannel )
   BWA_ALIGN ( TRIM_PE.out.combine( BWA_INDEX.out ) )
   MERGE_BAMS ( BWA_ALIGN.out.collect() )
