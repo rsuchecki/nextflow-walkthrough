@@ -3,12 +3,13 @@
 nextflow.enable.dsl=2 
 
 //Take accessions defined in nextflow.config.
-//Use --take N to process first N accessions or --take all to process all
+//Use --download N to process first N accessions or --download all to process all
+//see conf/data.config for more details
 ACCESSIONS_CHANNEL = Channel.from(params.accessions).take( params.download == 'all' ? -1 : params.download )
 
 region = "${params.chr}_${params.start}-${params.end}"
 
-process GET_ADAPTERS { //alternative: referencesChannel = Channel.fromPath(params.reference)
+process GET_ADAPTERS {
   publishDir "data/misc", mode: 'copy'
 
   input: 
@@ -23,7 +24,7 @@ process GET_ADAPTERS { //alternative: referencesChannel = Channel.fromPath(param
   """
 }
 
-process GET_REFERENCE { //alternative: referencesChannel = Channel.fromPath(params.reference)
+process GET_REFERENCE {
   tag { "${region}"}
   publishDir "data/references", mode: 'copy'
 
@@ -44,8 +45,7 @@ process GET_READS {
   publishDir "data/raw_reads", mode: 'copy'
 
   input:
-    val(accession)
-    //e.g. ACBarrie
+    val(accession)  //e.g. ACBarrie
 
   output:
     tuple val(accession), path("${accession}_R?.fastq.gz")
@@ -61,12 +61,12 @@ process GET_READS {
 }
 
 workflow {
-  //Reference fasta.gz specified in nextflow.config, override with --reference url_to_ref.fasta.gz
+  //Download Reference fasta.gz specified in conf/data.config, override with --reference url_to_ref.fasta.gz
   GET_REFERENCE(params.reference)
   
-  //Adapters FASTA file URL specified in nextflow.config, override with --adapters url_to_adapters.fasta
+  // Download adapters FASTA file URL specified in nextflow.config, override with --adapters url_to_adapters.fasta
   GET_ADAPTERS(params.adapters)
   
-  //
+  // Download reads 
   GET_READS(ACCESSIONS_CHANNEL)
 }
