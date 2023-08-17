@@ -7,15 +7,15 @@ nextflow.enable.dsl=2
   process 1 file unless --n used at run time, e.g. --n 16 
   to process all FASTQ files (16 pairs)
 */
-params.n = 1 
+
 
 Channel.fromPath("data/raw_reads/*.fastq.gz")
-  .take( params.n )
+  .take( params.n * 2 )
   .set { ReadsForQcChannel }
 
 process FASTQC {  
-  tag { "$sample" }
-  
+  tag { "${reads[0].baseName}" }
+
   input:
     path(reads)
 
@@ -91,8 +91,6 @@ process TRIM_PE {
   TRAILING:2 \
   SLIDINGWINDOW:4:15 \
   MINLEN:36 
-  #-Xms256m \
-  #-Xmx256m
   """
 }
 
