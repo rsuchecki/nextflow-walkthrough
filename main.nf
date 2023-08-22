@@ -14,6 +14,7 @@ Channel.fromPath("data/raw_reads/*.fastq.gz")
   .set { ReadsForQcChannel }
 
 process FASTQC {  
+  module = 'fastqc/0.11.9'
   input:
     path(reads)
 
@@ -28,6 +29,7 @@ process FASTQC {
 }
 
 process MULTIQC {
+  module = 'multiqc/1.15'
   publishDir 'results/multiqc', mode: 'copy'
 
   input:
