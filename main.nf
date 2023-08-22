@@ -42,24 +42,6 @@ process MULTIQC {
   """
 }
 
-Channel.fromPath('data/references/reference.fasta.gz')
-  .set { ReferencesChannel }
-
-process BWA_INDEX {
-  label 'bwa'
-
-  input:
-    path(ref)
-
-  output:
-    tuple val("${ref}"), path("*") 
-
-  script:
-  """
-  bwa index -a bwtsw ${ref}
-  """
-}
-
 /*
  Chaining everything toogether
 */
@@ -67,7 +49,4 @@ workflow {
   //QC - could be separated as a sub-workflow
   FASTQC( ReadsForQcChannel )
   MULTIQC( FASTQC.out.collect() )
-
-  //Workflow proper
-  BWA_INDEX (  ReferencesChannel )
 }
