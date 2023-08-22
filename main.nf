@@ -118,10 +118,10 @@ process MERGE_BAMS {
   cpus 2
 
   input:
-    path(BAMs) // from alignedReadsChannel.collect()
+    path(BAMs)
 
   output:
-    path('*.bam') //Input BAMs will be omitted, could also be explicit:  path("${params.n}_samples_megred.bam")
+    path('*.bam') //Input BAMs will be omitted
 
   script:
   """
