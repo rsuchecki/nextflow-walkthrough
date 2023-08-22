@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
 
-// DSL1 is used by default, switching to DSL2
+//DSL2 is the default now anyway
 nextflow.enable.dsl=2
 
 /*
@@ -14,8 +14,6 @@ Channel.fromPath("data/raw_reads/*.fastq.gz")
   .set { ReadsForQcChannel }
 
 process FASTQC {  
-  tag { "${reads[0].baseName}" }
-
   input:
     path(reads)
 
@@ -66,8 +64,8 @@ Channel.fromFilePairs("data/raw_reads/*_R{1,2}.fastq.gz")
   .take( params.n )
   .set{ ReadPairsForTrimmingChannel }
 
-// Channel.fromPath('data/misc/TruSeq3-PE.fa')
-// .set{ AdaptersChannel }
+// If we wanted to treat adapters file as other inputs and pull it down a channel...
+// Channel.fromPath('data/misc/TruSeq3-PE.fa').set{ AdaptersChannel }
 
 process TRIM_PE {
   tag { "$sample" }
@@ -93,7 +91,6 @@ process TRIM_PE {
   MINLEN:36 
   """
 }
-
 
 process BWA_ALIGN {
   label 'align'
@@ -141,9 +138,8 @@ workflow {
   MULTIQC( FASTQC.out.collect() )
 
   //Workflow proper
-  // TRIM_PE ( ReadPairsForTrimmingChannel.combine( AdaptersChannel ) )
   TRIM_PE ( ReadPairsForTrimmingChannel, file(params.adapters_local) )
-  BWA_INDEX(  ReferencesChannel )
-  BWA_ALIGN ( TRIM_PE.out.combine( BWA_INDEX.out ) )
+  BWA_INDEX (  ReferencesChannel )
+  BWA_ALIGN ( TRIM_PE.out.combine(BWA_INDEX.out) ) 
   MERGE_BAMS ( BWA_ALIGN.out.collect() )
 }

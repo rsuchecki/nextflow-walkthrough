@@ -4,3 +4,4 @@ flowinfo/
 work/
 results/
 singularity-images/
+analysis.sh
