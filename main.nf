@@ -111,24 +111,6 @@ process BWA_ALIGN {
   """
 }
 
-process MERGE_BAMS {
-  label 'samtools'
-
-  publishDir 'results/merged', mode: 'copy'
-  cpus 2
-
-  input:
-    path(BAMs)
-
-  output:
-    path('*.bam') //Input BAMs will be omitted
-
-  script:
-  """
-  samtools merge --threads ${task.cpus} ${params.n}_samples_megred.bam *.bam
-  """
-}
-
 /*
  Chaining everything toogether
 */
@@ -141,5 +123,4 @@ workflow {
   TRIM_PE ( ReadPairsForTrimmingChannel, file(params.adapters_local) )
   BWA_INDEX (  ReferencesChannel )
   BWA_ALIGN ( TRIM_PE.out.combine(BWA_INDEX.out) ) 
-  MERGE_BAMS ( BWA_ALIGN.out.collect() )
 }
