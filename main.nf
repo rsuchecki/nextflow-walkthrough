@@ -52,7 +52,7 @@ process BWA_INDEX {
     path(ref)
 
   output:
-    tuple val("${ref}"), path("*") 
+    path '*'
 
   script:
   """
@@ -99,14 +99,14 @@ process BWA_ALIGN {
   publishDir 'results/aligned', mode: 'copy'
 
   input:
-    tuple val(sample), path(reads), val(prefix), path(index) 
+    tuple val(sample), path(reads), path(index) 
 
   output:
     path '*.bam'
 
   script:
   """
-  bwa mem -t ${task.cpus} ${prefix} ${reads} \
+  bwa mem -t ${task.cpus} ${index[0].baseName} ${reads} \
   | samtools view -b > ${sample}.bam
   """
 }
@@ -122,5 +122,5 @@ workflow {
   //Workflow proper
   TRIM_PE ( ReadPairsForTrimmingChannel, file(params.adapters_local) )
   BWA_INDEX (  ReferencesChannel )
-  BWA_ALIGN ( TRIM_PE.out.combine(BWA_INDEX.out) ) 
+  BWA_ALIGN ( TRIM_PE.out.combine(BWA_INDEX.out.toList()) ) 
 }
